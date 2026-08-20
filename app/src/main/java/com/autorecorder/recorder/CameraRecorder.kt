@@ -15,8 +15,8 @@ import androidx.camera.video.Recording
 import androidx.camera.video.VideoCapture
 import androidx.camera.video.VideoRecordEvent
 import androidx.core.content.ContextCompat
+import androidx.core.util.Consumer
 import java.util.concurrent.ExecutorService
-import java.util.function.Consumer
 
 /**
  * CameraX-based video + audio recorder writing directly to MediaStore.
@@ -81,13 +81,13 @@ class CameraRecorder(
                         val rec = vc.output
                             .prepareRecording(context, outputOptions)
                             .withAudioEnabled()
-                        rec.start(executor, Consumer<VideoRecordEvent> { event ->
-                            if (event is VideoRecordEvent.Finalize) {
-                                val ok = !event.hasError()
-                                onResult(ok, if (ok) null else "error=${event.error}")
-                                cleanupAfterFinalize()
-                            }
-                        })
+                            .start(executor, Consumer<VideoRecordEvent> { event ->
+                                if (event is VideoRecordEvent.Finalize) {
+                                    val ok = !event.hasError()
+                                    onResult(ok, if (ok) null else "error=${event.error}")
+                                    cleanupAfterFinalize()
+                                }
+                            })
                         recording = rec
                         onResult(true, null)
                     } catch (e: Exception) {
