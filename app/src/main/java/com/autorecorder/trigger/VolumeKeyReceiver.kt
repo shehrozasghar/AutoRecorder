@@ -1,8 +1,8 @@
 package com.autorecorder.trigger
 
 import android.content.Context
+import android.media.VolumeProvider
 import android.media.session.MediaSession
-import android.media.session.VolumeProvider
 
 /**
  * Captures volume key presses in the background by routing them through a
