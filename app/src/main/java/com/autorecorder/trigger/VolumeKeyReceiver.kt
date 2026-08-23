@@ -1,6 +1,8 @@
 package com.autorecorder.trigger
 
-import kotlin.math.sqrt
+import android.content.Context
+import android.media.VolumeProvider
+import android.media.session.MediaSession
 
 /**
  * Captures volume key presses in the background by routing them through a
