@@ -8,9 +8,6 @@ data class AppConfig(
     val shakeThreshold: Float = 18f,
     val shakeCooldownMs: Long = 150L,
     val volumeEnabled: Boolean = true,
-    val voiceEnabled: Boolean = true,
-    val voiceKeywords: List<String> = listOf("start recording", "record", "capture"),
-    val voiceWindowSeconds: Int = 10,
     val customEnabled: Boolean = true,
     val useBackCamera: Boolean = false,
     val maxRecordingMinutes: Int = 5,
@@ -24,9 +21,6 @@ data class AppConfig(
             .putFloat("shakeThreshold", shakeThreshold)
             .putLong("shakeCooldownMs", shakeCooldownMs)
             .putBoolean("volumeEnabled", volumeEnabled)
-            .putBoolean("voiceEnabled", voiceEnabled)
-            .putString("voiceKeywords", voiceKeywords.joinToString("|"))
-            .putInt("voiceWindowSeconds", voiceWindowSeconds)
             .putBoolean("customEnabled", customEnabled)
             .putBoolean("useBackCamera", useBackCamera)
             .putInt("maxRecordingMinutes", maxRecordingMinutes)
@@ -43,10 +37,6 @@ data class AppConfig(
                 shakeThreshold = p.getFloat("shakeThreshold", 18f),
                 shakeCooldownMs = p.getLong("shakeCooldownMs", 150L),
                 volumeEnabled = p.getBoolean("volumeEnabled", true),
-                voiceEnabled = p.getBoolean("voiceEnabled", true),
-                voiceKeywords = p.getString("voiceKeywords", "start recording|record|capture")
-                    ?.split("|")?.filter { it.isNotBlank() } ?: emptyList(),
-                voiceWindowSeconds = p.getInt("voiceWindowSeconds", 10),
                 customEnabled = p.getBoolean("customEnabled", true),
                 useBackCamera = p.getBoolean("useBackCamera", false),
                 maxRecordingMinutes = p.getInt("maxRecordingMinutes", 5),

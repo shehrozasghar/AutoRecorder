@@ -16,11 +16,14 @@ Built for **personal use** on your own device (body-cam style capture, evidence 
 | Trigger | How it works |
 |---|---|
 | **Shake xN** | Accelerometer, count (default 3) + sensitivity configurable. Sensor-batched for near-zero idle battery |
-| **Volume key** | 1 press toggles recording, 3 quick presses arms voice listening. Uses `MediaSession` + `VolumeProvider.setPlaybackToRemote` — works in background, screen off |
-| **Voice keyword** | On-demand listening window (default 10 s) — mic is only active while listening, never always-on. Matches configurable keywords via on-device `SpeechRecognizer` |
+| **Volume key** | 1 press toggles recording. Uses `MediaSession` + `VolumeProvider.setPlaybackToRemote` — works in background, screen off |
 | **Custom gesture** | "Learn current gesture" records a shake pattern; matched live with Dynamic Time Warping on normalized accelerometer data |
 
 Any gesture both starts **and** stops recording (toggle). A max recording length can be set as a safety limit.
+
+### Recording reliability
+
+The mic is only used during actual recordings (no always-on listening). If the mic is busy when a trigger fires, the recorder automatically falls back through **video+audio → video only → audio only**, so you always get footage. Empty audio files are cleaned up automatically.
 
 ## Build from source
 
@@ -51,7 +54,6 @@ Recordings land in `Movies/AutoRecorder` (video) and `Music/AutoRecorder` (audio
 
 - Shake count & sensitivity
 - Volume key on/off
-- Voice keywords (pipe-separated) & listening window length
 - Custom gesture template (learn / clear)
 - Front vs back camera
 - Max recording length (minutes; 0 = until stop gesture)
@@ -67,7 +69,6 @@ app/src/main/java/com/autorecorder/
 │   ├── GestureEngine.kt     # sensor batching + trigger dispatch
 │   ├── ShakeDetector.kt     # accelerometer peak counting
 │   ├── VolumeKeyReceiver.kt # MediaSession volume-key capture
-│   ├── VoiceKeyword.kt      # on-demand SpeechRecognizer keyword match
 │   └── CustomGestureDetector.kt # DTW template matcher
 └── recorder/
     ├── CameraRecorder.kt    # CameraX video+audio → MediaStore
@@ -82,7 +83,6 @@ app/src/main/java/com/autorecorder/
 ## Known limitations
 
 - **Green mic/camera dot and the service notification are OS-enforced** on Android 12+ / 14+ — not hideable
-- Voice keyword accuracy depends on Google's on-device recognizer
 - While the volume-key trigger is active, volume buttons route through the app instead of changing system volume (by design — needed for detection)
 - Aggressive OEM battery managers (Xiaomi, Samsung) may kill the service — use the battery-exemption toggle
 

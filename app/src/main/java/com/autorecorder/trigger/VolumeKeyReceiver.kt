@@ -1,18 +1,16 @@
 package com.autorecorder.trigger
 
-import android.content.Context
-import android.media.VolumeProvider
-import android.media.session.MediaSession
+import kotlin.math.sqrt
 
 /**
  * Captures volume key presses in the background by routing them through a
  * remote VolumeProvider on a MediaSession. Works from a service and with the
- * screen off. Each physical press fires onAdjustVolume(+1/-1) then (0) on
- * release; the engine's debounce logic folds them into a single trigger.
+ * screen off. onAdjustVolume fires with +1/-1 on press and 0 on release;
+ * release events are filtered out by the engine.
  */
 class VolumeKeyReceiver(
     private val context: Context,
-    private val onVolumePressed: () -> Unit
+    private val onVolumePressed: (direction: Int) -> Unit
 ) {
     private var session: MediaSession? = null
 
@@ -26,7 +24,7 @@ class VolumeKeyReceiver(
             50
         ) {
             override fun onAdjustVolume(direction: Int) {
-                onVolumePressed()
+                onVolumePressed(direction)
             }
         }
         s.setPlaybackToRemote(provider)

@@ -6,7 +6,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
@@ -27,7 +26,6 @@ class RecorderService : Service() {
     companion object {
         const val ACTION_START = "com.autorecorder.action.START"
         const val ACTION_STOP = "com.autorecorder.action.STOP"
-        const val ACTION_ARM_VOICE = "com.autorecorder.action.ARM_VOICE"
         const val ACTION_CONFIG_CHANGED = "com.autorecorder.action.CONFIG_CHANGED"
 
         private const val NOTIFICATION_ID = 1
@@ -61,10 +59,7 @@ class RecorderService : Service() {
             }
             else -> {
                 ensureStarted()
-                when (intent?.action) {
-                    ACTION_ARM_VOICE -> engine?.armVoice()
-                    ACTION_CONFIG_CHANGED -> engine?.reloadConfig()
-                }
+                if (intent?.action == ACTION_CONFIG_CHANGED) engine?.reloadConfig()
             }
         }
         return START_STICKY
@@ -72,8 +67,11 @@ class RecorderService : Service() {
 
     private fun ensureStarted() {
         if (engine == null) {
-            val types = foregroundTypes()
-            startForeground(NOTIFICATION_ID, buildNotification("Idle", "Gesture detection active"), types)
+            startForeground(
+                NOTIFICATION_ID,
+                buildNotification("Idle", "Gesture detection active"),
+                foregroundTypes()
+            )
             engine = GestureEngine(this) { onGesture() }
             engine?.start()
         }
@@ -85,7 +83,6 @@ class RecorderService : Service() {
 
     private fun startRecording() {
         if (recording) return
-        engine?.stopVoice()
         val config = AppConfig.load(this)
         recording = true
 
@@ -98,19 +95,48 @@ class RecorderService : Service() {
                 config.maxRecordingMinutes * 60_000L
             )
         }
+        beginCamera(withAudio = true, allowVideoOnlyRetry = true)
+    }
 
+    /**
+     * Fallback chain when the mic is busy/unavailable:
+     * video+audio -> video only -> audio only.
+     */
+    private fun beginCamera(withAudio: Boolean, allowVideoOnlyRetry: Boolean) {
+        val config = AppConfig.load(this)
         val cam = CameraRecorder(this, executor)
         cameraRecorder = cam
-        cam.start(config.useBackCamera) { success, msg ->
-            if (!success) {
-                val audio = AudioOnlyRecorder(this)
-                audio.start(config.maxRecordingMinutes)
-                audioRecorder = audio
-                updateNotification(
-                    "Recording (audio only)",
-                    if (msg.isNullOrBlank()) "Camera unavailable" else msg
-                )
+        cam.start(config.useBackCamera, withAudio) { success, earlyFailure, message ->
+            if (success) return@start
+            cameraRecorder = null
+            if (!recording) return@start
+            when {
+                earlyFailure && allowVideoOnlyRetry ->
+                    beginCamera(withAudio = false, allowVideoOnlyRetry = false)
+                earlyFailure -> startAudioOnly(message)
+                else -> {
+                    // Failed mid-recording; nothing useful to keep.
+                    recording = false
+                    mainHandler.removeCallbacks(stopRecordingRunnable)
+                    releaseWakeLock()
+                    updateNotification("Idle", "Last recording failed")
+                }
             }
+        }
+    }
+
+    private fun startAudioOnly(reason: String?) {
+        val audio = AudioOnlyRecorder(this)
+        if (audio.start()) {
+            audioRecorder = audio
+            updateNotification(
+                "Recording (audio only)",
+                reason?.take(60) ?: "Camera unavailable"
+            )
+        } else {
+            recording = false
+            releaseWakeLock()
+            updateNotification("Idle", "Recorder failed to start")
         }
     }
 
@@ -118,13 +144,13 @@ class RecorderService : Service() {
         if (!recording) return
         recording = false
         mainHandler.removeCallbacks(stopRecordingRunnable)
-        cameraRecorder?.stop()
+        val cam = cameraRecorder
         cameraRecorder = null
+        cam?.stop()
         audioRecorder?.stop()
         audioRecorder = null
         releaseWakeLock()
         updateNotification("Idle", "Gesture detection active")
-        if (AppConfig.load(this).voiceEnabled) engine?.armVoice()
     }
 
     private fun stopEverything() {

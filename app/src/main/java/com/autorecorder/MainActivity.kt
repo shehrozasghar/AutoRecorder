@@ -33,9 +33,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var shakeCount: EditText
     private lateinit var shakeThreshold: EditText
     private lateinit var volumeSwitch: SwitchMaterial
-    private lateinit var voiceSwitch: SwitchMaterial
-    private lateinit var keywords: EditText
-    private lateinit var windowSec: EditText
     private lateinit var customSwitch: SwitchMaterial
     private lateinit var useBackSwitch: SwitchMaterial
     private lateinit var maxMinutes: EditText
@@ -106,33 +103,10 @@ class MainActivity : AppCompatActivity() {
 
         col.addView(sectionTitle("Volume key trigger"))
         volumeSwitch = SwitchMaterial(this).apply {
-            text = "Enabled (single press toggles recording, 3 presses = listen)"
+            text = "Enabled (press volume key once to toggle recording)"
             setOnCheckedChangeListener { _, _ -> if (!loadingUi) saveFromUi() }
         }
         col.addView(volumeSwitch)
-
-        col.addView(sectionTitle("Voice keyword (on-demand listening)"))
-        voiceSwitch = SwitchMaterial(this).apply {
-            text = "Enabled (mic only while listening)"
-            setOnCheckedChangeListener { _, _ -> if (!loadingUi) saveFromUi() }
-        }
-        col.addView(voiceSwitch)
-        col.addView(fieldLabel("Keywords (separate with |)"))
-        keywords = EditText(this).apply {
-            inputType = InputType.TYPE_CLASS_TEXT
-        }
-        col.addView(keywords)
-        col.addView(fieldLabel("Listening window (seconds)"))
-        windowSec = numberField("10")
-        col.addView(windowSec)
-        col.addView(button("Arm voice listening now") {
-            saveFromUi()
-            ContextCompat.startForegroundService(
-                this@MainActivity,
-                Intent(this@MainActivity, RecorderService::class.java)
-                    .setAction(RecorderService.ACTION_ARM_VOICE)
-            )
-        })
 
         col.addView(sectionTitle("Custom gesture (learn your own)"))
         customSwitch = SwitchMaterial(this).apply {
@@ -283,10 +257,6 @@ class MainActivity : AppCompatActivity() {
             shakeCount = shakeCount.text.toString().toIntOrNull() ?: 3,
             shakeThreshold = shakeThreshold.text.toString().toFloatOrNull() ?: 18f,
             volumeEnabled = volumeSwitch.isChecked,
-            voiceEnabled = voiceSwitch.isChecked,
-            voiceKeywords = keywords.text.toString()
-                .split("|").map { it.trim() }.filter { it.isNotBlank() },
-            voiceWindowSeconds = windowSec.text.toString().toIntOrNull() ?: 10,
             customEnabled = customSwitch.isChecked,
             useBackCamera = useBackSwitch.isChecked,
             maxRecordingMinutes = maxMinutes.text.toString().toIntOrNull() ?: 5
@@ -308,9 +278,6 @@ class MainActivity : AppCompatActivity() {
         shakeCount.setText(cfg.shakeCount.toString())
         shakeThreshold.setText(cfg.shakeThreshold.toString())
         volumeSwitch.isChecked = cfg.volumeEnabled
-        voiceSwitch.isChecked = cfg.voiceEnabled
-        keywords.setText(cfg.voiceKeywords.joinToString("|"))
-        windowSec.setText(cfg.voiceWindowSeconds.toString())
         customSwitch.isChecked = cfg.customEnabled
         useBackSwitch.isChecked = cfg.useBackCamera
         maxMinutes.setText(cfg.maxRecordingMinutes.toString())

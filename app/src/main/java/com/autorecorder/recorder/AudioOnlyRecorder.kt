@@ -2,22 +2,25 @@ package com.autorecorder.recorder
 
 import android.content.ContentValues
 import android.content.Context
+import android.database.Cursor
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Environment
+import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
 
 /**
  * Audio-only fallback recorder (used when the camera is unavailable).
+ * Writes AAC audio into Music/AutoRecorder via MediaStore.
  */
-class AudioOnlyRecorder(context: Context) {
+class AudioOnlyRecorder(private val context: Context) {
 
-    private val resolver = context.contentResolver
     private var mediaRecorder: MediaRecorder? = null
+    private var pfd: ParcelFileDescriptor? = null
     private var uri: Uri? = null
 
-    fun start(maxMinutes: Int) {
-        try {
+    fun start(): Boolean {
+        return try {
             val cv = ContentValues().apply {
                 put(
                     MediaStore.Audio.Media.DISPLAY_NAME,
@@ -29,11 +32,13 @@ class AudioOnlyRecorder(context: Context) {
                     Environment.DIRECTORY_MUSIC + "/AutoRecorder"
                 )
             }
-            val u = resolver.insert(
+            val u = context.contentResolver.insert(
                 MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, cv
-            ) ?: return
+            ) ?: return false
             uri = u
-            val fd = resolver.openFileDescriptor(u, "w") ?: return
+            val fd = context.contentResolver.openFileDescriptor(u, "rw") ?: return false
+            pfd = fd
+
             val mr = MediaRecorder()
             mediaRecorder = mr
             mr.setAudioSource(MediaRecorder.AudioSource.MIC)
@@ -44,12 +49,18 @@ class AudioOnlyRecorder(context: Context) {
             mr.setOutputFile(fd.fileDescriptor)
             mr.prepare()
             mr.start()
-        } catch (e: Exception) {
-            stop()
+            true
+        } catch (_: Exception) {
+            stopAndCleanup()
+            false
         }
     }
 
     fun stop() {
+        stopAndCleanup()
+    }
+
+    private fun stopAndCleanup() {
         try {
             mediaRecorder?.stop()
         } catch (_: Exception) {
@@ -59,5 +70,34 @@ class AudioOnlyRecorder(context: Context) {
         } catch (_: Exception) {
         }
         mediaRecorder = null
+        try {
+            pfd?.close()
+        } catch (_: Exception) {
+        }
+        pfd = null
+        deleteIfEmpty()
+    }
+
+    /** Removes the MediaStore entry if nothing meaningful was recorded. */
+    private fun deleteIfEmpty() {
+        val u = uri ?: return
+        uri = null
+        try {
+            var size = -1L
+            val cursor: Cursor? = context.contentResolver.query(
+                u, arrayOf(MediaStore.Audio.Media.SIZE), null, null, null
+            )
+            cursor?.use { c ->
+                if (c.moveToFirst()) size = c.getLong(0)
+            }
+            if (size < MIN_VALID_BYTES) {
+                context.contentResolver.delete(u, null, null)
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    companion object {
+        private const val MIN_VALID_BYTES = 4096L
     }
 }
