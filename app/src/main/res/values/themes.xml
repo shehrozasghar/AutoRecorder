@@ -1,3 +1,12 @@
 <resources>
-    <style name="Theme.AutoRecorder" parent="Theme.MaterialComponents.DayNight.DarkActionBar" />
+    <style name="Theme.AutoRecorder" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryVariant">@color/primary_dark</item>
+        <item name="colorOnPrimary">@color/header_text</item>
+        <item name="colorSecondary">@color/accent</item>
+        <item name="colorSecondaryVariant">@color/accent</item>
+        <item name="colorOnSecondary">@color/header_text</item>
+        <item name="android:statusBarColor">@color/primary_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
 </resources>

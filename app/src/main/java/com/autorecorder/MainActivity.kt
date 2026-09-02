@@ -11,32 +11,37 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.text.InputType
 import android.view.View
-import android.view.ViewGroup
-import android.widget.Button
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.ScrollView
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.autorecorder.config.AppConfig
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.button.MaterialButtonToggleGroup
+import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.textfield.TextInputEditText
 import kotlin.math.sqrt
 
 class MainActivity : AppCompatActivity() {
 
+    private lateinit var statusChip: TextView
+    private lateinit var statusText: TextView
     private lateinit var serviceSwitch: SwitchMaterial
+    private lateinit var modeGroup: MaterialButtonToggleGroup
     private lateinit var shakeSwitch: SwitchMaterial
-    private lateinit var shakeCount: EditText
-    private lateinit var shakeThreshold: EditText
+    private lateinit var shakeCount: TextInputEditText
+    private lateinit var shakeThreshold: TextInputEditText
     private lateinit var volumeSwitch: SwitchMaterial
     private lateinit var customSwitch: SwitchMaterial
-    private lateinit var useBackSwitch: SwitchMaterial
-    private lateinit var maxMinutes: EditText
-    private lateinit var status: TextView
+    private lateinit var maxMinutes: TextInputEditText
+    private lateinit var learnGestureButton: MaterialButton
+    private lateinit var clearGestureButton: MaterialButton
+    private lateinit var permissionsButton: MaterialButton
+    private lateinit var batteryButton: MaterialButton
+    private lateinit var saveButton: MaterialButton
 
     private lateinit var sensorManager: SensorManager
     private var loadingUi = false
@@ -49,120 +54,75 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
-        setContentView(buildUi())
+        setContentView(R.layout.activity_main)
+        bindViews()
+        wireListeners()
         loadIntoUi()
+    }
+
+    private fun bindViews() {
+        statusChip = findViewById(R.id.statusChip)
+        statusText = findViewById(R.id.statusText)
+        serviceSwitch = findViewById(R.id.serviceSwitch)
+        modeGroup = findViewById(R.id.modeGroup)
+        shakeSwitch = findViewById(R.id.shakeSwitch)
+        shakeCount = findViewById(R.id.shakeCount)
+        shakeThreshold = findViewById(R.id.shakeThreshold)
+        volumeSwitch = findViewById(R.id.volumeSwitch)
+        customSwitch = findViewById(R.id.customSwitch)
+        maxMinutes = findViewById(R.id.maxMinutes)
+        learnGestureButton = findViewById(R.id.learnGestureButton)
+        clearGestureButton = findViewById(R.id.clearGestureButton)
+        permissionsButton = findViewById(R.id.permissionsButton)
+        batteryButton = findViewById(R.id.batteryButton)
+        saveButton = findViewById(R.id.saveButton)
+    }
+
+    private fun wireListeners() {
+        serviceSwitch.setOnCheckedChangeListener { _, checked ->
+            if (!loadingUi) onServiceToggle(checked)
+        }
+
+        modeGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (isChecked && !loadingUi) saveFromUi()
+        }
+
+        shakeSwitch.setOnCheckedChangeListener { _, _ -> if (!loadingUi) saveFromUi() }
+        volumeSwitch.setOnCheckedChangeListener { _, _ -> if (!loadingUi) saveFromUi() }
+        customSwitch.setOnCheckedChangeListener { _, _ -> if (!loadingUi) saveFromUi() }
+
+        learnGestureButton.setOnClickListener { startTemplateCapture() }
+        clearGestureButton.setOnClickListener { clearTemplate() }
+        permissionsButton.setOnClickListener { requestAllPermissions() }
+        batteryButton.setOnClickListener { requestIgnoreBatteryOptimizations() }
+        saveButton.setOnClickListener {
+            saveFromUi()
+            showMessage("Settings saved. Restart the service if it is running.")
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        loadIntoUi()
-        status.text = if (isServiceRunning()) {
-            "Service running - gestures active"
+        refreshStatus()
+    }
+
+    private fun refreshStatus() {
+        val running = isServiceRunning()
+        statusChip.text = if (running) {
+            getString(R.string.status_active)
         } else {
-            "Service stopped"
+            getString(R.string.status_inactive)
         }
-    }
-
-    private fun buildUi(): View {
-        val root = ScrollView(this).apply { isFillViewport = true }
-        val col = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(16), dp(16), dp(16))
-        }
-        root.addView(col, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        ))
-
-        status = TextView(this).apply {
-            textSize = 14f
-            setPadding(0, 0, 0, dp(12))
-        }
-        col.addView(status)
-
-        serviceSwitch = SwitchMaterial(this).apply {
-            text = "Enable background service"
-            setOnCheckedChangeListener { _, checked ->
-                if (!loadingUi) onServiceToggle(checked)
-            }
-        }
-        col.addView(serviceSwitch)
-
-        col.addView(sectionTitle("Shake trigger"))
-        shakeSwitch = SwitchMaterial(this).apply {
-            text = "Enabled"
-            setOnCheckedChangeListener { _, _ -> if (!loadingUi) saveFromUi() }
-        }
-        col.addView(shakeSwitch)
-        col.addView(fieldLabel("Shakes required (default 3)"))
-        shakeCount = numberField("3")
-        col.addView(shakeCount)
-        col.addView(fieldLabel("Sensitivity (higher = harder shake)"))
-        shakeThreshold = numberField("18")
-        col.addView(shakeThreshold)
-
-        col.addView(sectionTitle("Volume key trigger"))
-        volumeSwitch = SwitchMaterial(this).apply {
-            text = "Enabled (press volume key once to toggle recording)"
-            setOnCheckedChangeListener { _, _ -> if (!loadingUi) saveFromUi() }
-        }
-        col.addView(volumeSwitch)
-
-        col.addView(sectionTitle("Custom gesture (learn your own)"))
-        customSwitch = SwitchMaterial(this).apply {
-            text = "Enabled"
-            setOnCheckedChangeListener { _, _ -> if (!loadingUi) saveFromUi() }
-        }
-        col.addView(customSwitch)
-        col.addView(button("Learn current gesture (shake in your pattern)") {
-            startTemplateCapture()
-        })
-        col.addView(button("Clear learned gesture") {
-            clearTemplate()
-        })
-
-        col.addView(sectionTitle("Recording"))
-        useBackSwitch = SwitchMaterial(this).apply {
-            text = "Use back camera"
-            setOnCheckedChangeListener { _, _ -> if (!loadingUi) saveFromUi() }
-        }
-        col.addView(useBackSwitch)
-        col.addView(fieldLabel("Max length (minutes, 0 = until stop)"))
-        maxMinutes = numberField("5")
-        col.addView(maxMinutes)
-
-        col.addView(button("Grant permissions") { requestAllPermissions() })
-        col.addView(button("Request battery optimization exemption") {
-            requestIgnoreBatteryOptimizations()
-        })
-        col.addView(button("Save settings") {
-            saveFromUi()
-            status.text = "Saved. Restart the service if it is running."
-        })
-
-        return root
-    }
-
-    private fun sectionTitle(text: String): TextView = TextView(this).apply {
-        this.text = text
-        textSize = 16f
-        setPadding(0, dp(20), 0, dp(4))
-    }
-
-    private fun fieldLabel(text: String): TextView = TextView(this).apply {
-        this.text = text
-        textSize = 13f
-        setPadding(0, dp(8), 0, dp(2))
-    }
-
-    private fun numberField(default: String): EditText = EditText(this).apply {
-        setText(default)
-        inputType = InputType.TYPE_CLASS_NUMBER
-    }
-
-    private fun button(text: String, onClick: () -> Unit): Button = Button(this).apply {
-        this.text = text
-        setOnClickListener { onClick() }
+        statusChip.background = ContextCompat.getDrawable(
+            this,
+            if (running) R.drawable.bg_status_active else R.drawable.bg_status_idle
+        )
+        statusChip.setTextColor(
+            ContextCompat.getColor(
+                this,
+                if (running) R.color.status_active else R.color.status_idle
+            )
+        )
     }
 
     private fun onServiceToggle(checked: Boolean) {
@@ -170,7 +130,7 @@ class MainActivity : AppCompatActivity() {
         if (checked) {
             if (!hasAllPermissions()) {
                 serviceSwitch.isChecked = false
-                status.text = "Grant permissions first."
+                showMessage("Grant permissions first.")
                 requestAllPermissions()
                 return
             }
@@ -179,13 +139,23 @@ class MainActivity : AppCompatActivity() {
                 Intent(this, RecorderService::class.java)
                     .setAction(RecorderService.ACTION_START)
             )
-            status.text = "Service started - gestures active"
+            showMessage("Service started - gestures active")
         } else {
             stopService(
                 Intent(this, RecorderService::class.java)
                     .setAction(RecorderService.ACTION_STOP)
             )
-            status.text = "Service stopped"
+            showMessage("Service stopped")
+        }
+        refreshStatus()
+    }
+
+    private fun showMessage(text: String) {
+        statusText.text = text
+        val root = findViewById<View>(android.R.id.content)
+        try {
+            Snackbar.make(root, text, Snackbar.LENGTH_LONG).show()
+        } catch (_: Exception) {
         }
     }
 
@@ -193,7 +163,7 @@ class MainActivity : AppCompatActivity() {
         val acc = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) ?: return
         templateSamples = 0
         templateValues.clear()
-        status.text = "Recording gesture pattern ~4s - shake in your pattern..."
+        showMessage("Recording gesture pattern - shake in your pattern...")
         templateListener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent) {
                 if (event.sensor.type != Sensor.TYPE_ACCELEROMETER) return
@@ -222,7 +192,7 @@ class MainActivity : AppCompatActivity() {
             .edit()
             .putString("templateData", normalized.joinToString(","))
             .apply()
-        status.text = "Gesture template saved - custom trigger active"
+        showMessage("Gesture template saved - custom trigger active")
     }
 
     private fun clearTemplate() {
@@ -230,7 +200,7 @@ class MainActivity : AppCompatActivity() {
             .edit()
             .remove("templateData")
             .apply()
-        status.text = "Gesture template cleared"
+        showMessage("Gesture template cleared")
     }
 
     private fun normalizeTemplate(a: FloatArray, n: Int): FloatArray {
@@ -258,7 +228,7 @@ class MainActivity : AppCompatActivity() {
             shakeThreshold = shakeThreshold.text.toString().toFloatOrNull() ?: 18f,
             volumeEnabled = volumeSwitch.isChecked,
             customEnabled = customSwitch.isChecked,
-            useBackCamera = useBackSwitch.isChecked,
+            recordMode = selectedMode(),
             maxRecordingMinutes = maxMinutes.text.toString().toIntOrNull() ?: 5
         )
         cfg.save(this)
@@ -270,6 +240,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun selectedMode(): Int = when (modeGroup.checkedButtonId) {
+        R.id.modeVideoFront -> AppConfig.MODE_VIDEO_FRONT
+        R.id.modeVideoBack -> AppConfig.MODE_VIDEO_BACK
+        else -> AppConfig.MODE_AUDIO
+    }
+
     private fun loadIntoUi() {
         loadingUi = true
         val cfg = AppConfig.load(this)
@@ -279,8 +255,13 @@ class MainActivity : AppCompatActivity() {
         shakeThreshold.setText(cfg.shakeThreshold.toString())
         volumeSwitch.isChecked = cfg.volumeEnabled
         customSwitch.isChecked = cfg.customEnabled
-        useBackSwitch.isChecked = cfg.useBackCamera
         maxMinutes.setText(cfg.maxRecordingMinutes.toString())
+
+        when (cfg.recordMode) {
+            AppConfig.MODE_VIDEO_FRONT -> modeGroup.check(R.id.modeVideoFront)
+            AppConfig.MODE_VIDEO_BACK -> modeGroup.check(R.id.modeVideoBack)
+            else -> modeGroup.check(R.id.modeAudio)
+        }
         loadingUi = false
     }
 
@@ -325,6 +306,4 @@ class MainActivity : AppCompatActivity() {
         return am.getRunningServices(Int.MAX_VALUE)
             .any { it.service.className == RecorderService::class.java.name }
     }
-
-    private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 }

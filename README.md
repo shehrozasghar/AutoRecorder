@@ -21,9 +21,21 @@ Built for **personal use** on your own device (body-cam style capture, evidence 
 
 Any gesture both starts **and** stops recording (toggle). A max recording length can be set as a safety limit.
 
+### Recording mode
+
+A global **Recording mode** selector in Settings decides what a gesture records:
+
+| Mode | What it records |
+|---|---|
+| **Audio only** (default) | Microphone-only AAC `.m4a` → `Music/AutoRecorder`. No camera, no green camera dot — most reliable |
+| **Video — front camera** | Video + audio `.mp4` from the front camera → `Movies/AutoRecorder` |
+| **Video — back camera** | Video + audio `.mp4` from the back camera → `Movies/AutoRecorder` |
+
+Pick your mode once in Settings; every gesture then records that way.
+
 ### Recording reliability
 
-The mic is only used during actual recordings (no always-on listening). If the mic is busy when a trigger fires, the recorder automatically falls back through **video+audio → video only → audio only**, so you always get footage. Empty audio files are cleaned up automatically.
+The mic is only used during actual recordings (no always-on listening). In **video** mode, if the mic is busy when a trigger fires, the recorder automatically falls back through **video+audio → video only → audio only**, so you always get footage. Empty audio files are cleaned up automatically.
 
 ## Build from source
 
@@ -55,7 +67,7 @@ Recordings land in `Movies/AutoRecorder` (video) and `Music/AutoRecorder` (audio
 - Shake count & sensitivity
 - Volume key on/off
 - Custom gesture template (learn / clear)
-- Front vs back camera
+- Recording mode: audio only / video front / video back
 - Max recording length (minutes; 0 = until stop gesture)
 
 ## Project structure

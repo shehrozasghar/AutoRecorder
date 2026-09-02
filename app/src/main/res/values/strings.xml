@@ -1,3 +1,38 @@
 <resources>
     <string name="app_name">AutoRecorder</string>
+
+    <string name="header_subtitle">Background recorder triggered by gestures</string>
+    <string name="status_active">Service active</string>
+    <string name="status_inactive">Service stopped</string>
+
+    <string name="service_card_title">Background service</string>
+    <string name="service_switch_label">Enable background service</string>
+
+    <string name="mode_card_title">Recording mode</string>
+    <string name="mode_audio">Audio</string>
+    <string name="mode_video_front">Video front</string>
+    <string name="mode_video_back">Video back</string>
+    <string name="mode_hint">Gestures record in the selected mode. Audio needs only the mic; video uses the chosen camera.</string>
+
+    <string name="triggers_title">Triggers</string>
+    <string name="shake_title">Shake</string>
+    <string name="shake_subtitle">Shake the phone to toggle recording</string>
+    <string name="shake_enabled">Enabled</string>
+    <string name="shake_count_label">Shakes required</string>
+    <string name="shake_threshold_label">Sensitivity (higher = harder)</string>
+    <string name="volume_title">Volume key</string>
+    <string name="volume_subtitle">Press volume once to toggle recording</string>
+    <string name="volume_enabled">Enabled</string>
+    <string name="custom_title">Custom gesture</string>
+    <string name="custom_subtitle">Learn and match your own shake pattern</string>
+    <string name="custom_enabled">Enabled</string>
+    <string name="custom_learn">Learn current gesture</string>
+    <string name="custom_clear">Clear learned gesture</string>
+
+    <string name="recording_title">Recording</string>
+    <string name="max_length_label">Max length (minutes, 0 = until stop)</string>
+
+    <string name="grant_permissions">Grant permissions</string>
+    <string name="battery_exemption">Request battery exemption</string>
+    <string name="save_settings">Save settings</string>
 </resources>

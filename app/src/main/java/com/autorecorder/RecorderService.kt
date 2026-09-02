@@ -77,6 +77,8 @@ class RecorderService : Service() {
         }
     }
 
+    private val recordingModeLabel get() = AppConfig.modeLabel(AppConfig.load(this).recordMode)
+
     private fun onGesture() {
         if (recording) stopRecording() else startRecording()
     }
@@ -87,7 +89,10 @@ class RecorderService : Service() {
         recording = true
 
         if (config.keepScreenAwake) acquireWakeLock()
-        updateNotification("Recording", "Gesture again to stop")
+        updateNotification(
+            "Recording ($recordingModeLabel)",
+            "Gesture again to stop"
+        )
         mainHandler.removeCallbacks(stopRecordingRunnable)
         if (config.maxRecordingMinutes > 0) {
             mainHandler.postDelayed(
@@ -95,7 +100,12 @@ class RecorderService : Service() {
                 config.maxRecordingMinutes * 60_000L
             )
         }
-        beginCamera(withAudio = true, allowVideoOnlyRetry = true)
+
+        if (config.isVideo) {
+            beginCamera(withAudio = true, allowVideoOnlyRetry = true)
+        } else {
+            startAudioOnly(null)
+        }
     }
 
     /**
@@ -130,8 +140,8 @@ class RecorderService : Service() {
         if (audio.start()) {
             audioRecorder = audio
             updateNotification(
-                "Recording (audio only)",
-                reason?.take(60) ?: "Camera unavailable"
+                "Recording (audio)",
+                reason?.take(60) ?: "Audio mode active"
             )
         } else {
             recording = false
