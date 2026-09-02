@@ -253,8 +253,15 @@
                                 android:id="@+id/shakeCount"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:background="@drawable/bg_input_field"
                                 android:inputType="number"
-                                android:text="3" />
+                                android:paddingStart="10dp"
+                                android:paddingTop="8dp"
+                                android:paddingEnd="10dp"
+                                android:paddingBottom="8dp"
+                                android:text="3"
+                                android:textColor="@color/text_primary"
+                                android:textColorHint="@color/text_secondary" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -275,8 +282,15 @@
                                 android:id="@+id/shakeThreshold"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:background="@drawable/bg_input_field"
                                 android:inputType="numberDecimal"
-                                android:text="18" />
+                                android:paddingStart="10dp"
+                                android:paddingTop="8dp"
+                                android:paddingEnd="10dp"
+                                android:paddingBottom="8dp"
+                                android:text="18"
+                                android:textColor="@color/text_primary"
+                                android:textColorHint="@color/text_secondary" />
                         </LinearLayout>
                     </LinearLayout>
 
@@ -420,8 +434,15 @@
                         android:id="@+id/maxMinutes"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:background="@drawable/bg_input_field"
                         android:inputType="number"
-                        android:text="5" />
+                        android:paddingStart="10dp"
+                        android:paddingTop="8dp"
+                        android:paddingEnd="10dp"
+                        android:paddingBottom="8dp"
+                        android:text="5"
+                        android:textColor="@color/text_primary"
+                        android:textColorHint="@color/text_secondary" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
