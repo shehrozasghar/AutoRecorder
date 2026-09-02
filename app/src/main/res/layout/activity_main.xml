@@ -130,7 +130,8 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="@string/mode_audio" />
+                            android:text="@string/mode_audio"
+                            android:textColor="@color/mode_button_text" />
 
                         <com.google.android.material.button.MaterialButton
                             style="?attr/materialButtonOutlinedStyle"
@@ -138,7 +139,8 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="@string/mode_video_front" />
+                            android:text="@string/mode_video_front"
+                            android:textColor="@color/mode_button_text" />
 
                         <com.google.android.material.button.MaterialButton
                             style="?attr/materialButtonOutlinedStyle"
@@ -146,7 +148,8 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="@string/mode_video_back" />
+                            android:text="@string/mode_video_back"
+                            android:textColor="@color/mode_button_text" />
                     </com.google.android.material.button.MaterialButtonToggleGroup>
 
                     <TextView
