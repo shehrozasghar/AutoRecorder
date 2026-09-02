@@ -8,36 +8,26 @@ import android.net.Uri
 import android.os.Environment
 import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
+import java.io.File
+import java.io.FileInputStream
 
 /**
- * Audio-only fallback recorder (used when the camera is unavailable).
- * Writes AAC audio into Music/AutoRecorder via MediaStore.
+ * Audio-only recorder. Writes AAC audio via MediaRecorder to a temp file,
+ * then copies the result into MediaStore (Music/AutoRecorder/) after
+ * recording completes. Direct-to-MediaStore FileDescriptor writes are
+ * unreliable on Android 10+.
  */
 class AudioOnlyRecorder(private val context: Context) {
 
     private var mediaRecorder: MediaRecorder? = null
-    private var pfd: ParcelFileDescriptor? = null
+    private var tempFile: File? = null
     private var uri: Uri? = null
 
     fun start(): Boolean {
         return try {
-            val cv = ContentValues().apply {
-                put(
-                    MediaStore.Audio.Media.DISPLAY_NAME,
-                    "AR_AUDIO_${System.currentTimeMillis()}.m4a"
-                )
-                put(MediaStore.Audio.Media.MIME_TYPE, "audio/mp4")
-                put(
-                    MediaStore.Audio.Media.RELATIVE_PATH,
-                    Environment.DIRECTORY_MUSIC + "/AutoRecorder"
-                )
-            }
-            val u = context.contentResolver.insert(
-                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, cv
-            ) ?: return false
-            uri = u
-            val fd = context.contentResolver.openFileDescriptor(u, "rw") ?: return false
-            pfd = fd
+            val cacheDir = File(context.cacheDir, "audio_tmp").apply { mkdirs() }
+            val file = File(cacheDir, "AR_AUDIO_${System.currentTimeMillis()}.m4a")
+            tempFile = file
 
             val mr = MediaRecorder()
             mediaRecorder = mr
@@ -46,7 +36,7 @@ class AudioOnlyRecorder(private val context: Context) {
             mr.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             mr.setAudioEncodingBitRate(128_000)
             mr.setAudioSamplingRate(44_100)
-            mr.setOutputFile(fd.fileDescriptor)
+            mr.setOutputFile(file.absolutePath)
             mr.prepare()
             mr.start()
             true
@@ -56,45 +46,65 @@ class AudioOnlyRecorder(private val context: Context) {
         }
     }
 
-    fun stop() {
-        stopAndCleanup()
+    fun stop(): Boolean {
+        var copied = false
+        try {
+            mediaRecorder?.stop()
+            copied = copyToMediaStore()
+        } catch (_: Exception) {
+        }
+        releaseRecorder()
+        deleteTemp()
+        return copied
+    }
+
+    private fun releaseRecorder() {
+        try { mediaRecorder?.release() } catch (_: Exception) {}
+        mediaRecorder = null
+    }
+
+    private fun deleteTemp() {
+        try { tempFile?.delete() } catch (_: Exception) {}
+        tempFile = null
+    }
+
+    private fun copyToMediaStore(): Boolean {
+        val src = tempFile ?: return false
+        if (!src.exists() || src.length() < MIN_VALID_BYTES) return false
+        try {
+            val cv = ContentValues().apply {
+                put(MediaStore.Audio.Media.DISPLAY_NAME, src.name)
+                put(MediaStore.Audio.Media.MIME_TYPE, "audio/mp4")
+                put(MediaStore.Audio.Media.RELATIVE_PATH,
+                    Environment.DIRECTORY_MUSIC + "/AutoRecorder")
+            }
+            val u = context.contentResolver.insert(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, cv
+            ) ?: return false
+            uri = u
+            context.contentResolver.openOutputStream(u)?.use { out ->
+                FileInputStream(src).use { input ->
+                    input.copyTo(out)
+                }
+            }
+            return true
+        } catch (_: Exception) {
+            deleteFromMediaStore()
+            return false
+        }
     }
 
     private fun stopAndCleanup() {
-        try {
-            mediaRecorder?.stop()
-        } catch (_: Exception) {
-        }
-        try {
-            mediaRecorder?.release()
-        } catch (_: Exception) {
-        }
-        mediaRecorder = null
-        try {
-            pfd?.close()
-        } catch (_: Exception) {
-        }
-        pfd = null
-        deleteIfEmpty()
+        try { mediaRecorder?.stop() } catch (_: Exception) {}
+        releaseRecorder()
+        deleteTemp()
+        deleteFromMediaStore()
     }
 
-    /** Removes the MediaStore entry if nothing meaningful was recorded. */
-    private fun deleteIfEmpty() {
+    private fun deleteFromMediaStore() {
         val u = uri ?: return
         uri = null
-        try {
-            var size = -1L
-            val cursor: Cursor? = context.contentResolver.query(
-                u, arrayOf(MediaStore.Audio.Media.SIZE), null, null, null
-            )
-            cursor?.use { c ->
-                if (c.moveToFirst()) size = c.getLong(0)
-            }
-            if (size < MIN_VALID_BYTES) {
-                context.contentResolver.delete(u, null, null)
-            }
-        } catch (_: Exception) {
-        }
+        try { context.contentResolver.delete(u, null, null) } catch (_: Exception) {}
     }
 
     companion object {
